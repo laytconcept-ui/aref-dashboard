@@ -80,22 +80,30 @@ if not st.session_state['logged_in']:
                     st.error("بيانات الدخول غير صحيحة.")
     st.stop()
 
-# 4. دالة قراءة البيانات الذكية (المحدثة لتفادي مشكل الأصفار)
+# 4. دالة قراءة البيانات "الذكية" (تكتشف العناوين تلقائياً وتنظفها)
 FILE_PATH = "eQissmi_donnees_Haouz(1).xlsx"
 
 @st.cache_data(ttl=60)
 def load_data():
     if os.path.exists(FILE_PATH):
         try:
-            # المحاولة الأولى: قراءة السطر الأول كعناوين
-            df = pd.read_excel(FILE_PATH)
+            # تجربة قراءة أول 5 سطور للبحث عن العناوين الحقيقية
+            for i in range(5):
+                df_temp = pd.read_excel(FILE_PATH, header=i)
+                # تنظيف أسماء الأعمدة من الفراغات الزائدة
+                df_temp.columns = df_temp.columns.astype(str).str.strip()
+                
+                # التحقق هل وجدنا الأعمدة المطلوبة
+                if 'Tuteur' in df_temp.columns or 'Statut: Validé' in df_temp.columns or 'Username' in df_temp.columns:
+                    # تنظيف البيانات داخل عمود الحالة إذا وجد
+                    if 'Statut: Validé' in df_temp.columns:
+                        df_temp['Statut: Validé'] = df_temp['Statut: Validé'].astype(str).str.strip()
+                    return df_temp
             
-            # إذا لم يجد عمود 'Statut: Validé'، سيجرب السطر الثاني
-            if 'Statut: Validé' not in df.columns:
-                df_alt = pd.read_excel(FILE_PATH, header=1)
-                if 'Statut: Validé' in df_alt.columns:
-                    return df_alt
-            return df
+            # إذا لم يجد شيئا بعد 5 محاولات، يرجع الملف العادي مع تنظيف الأعمدة
+            df_fallback = pd.read_excel(FILE_PATH)
+            df_fallback.columns = df_fallback.columns.astype(str).str.strip()
+            return df_fallback
         except Exception as e:
             return pd.DataFrame()
     return pd.DataFrame()
@@ -125,14 +133,12 @@ with st.sidebar:
         st.session_state['logged_in'] = False
         st.rerun()
 
-# 7. الحسابات والمؤشرات (مع حماية ضد غياب الأعمدة)
+# 7. الحسابات والمؤشرات
 total = len(df)
 valide = non_valide = taux = tuteurs_count = 0
 
 if total > 0:
     if 'Statut: Validé' in df.columns:
-        # نقوم بتنظيف النصوص من أي مسافات زائدة لضمان دقة الحساب
-        df['Statut: Validé'] = df['Statut: Validé'].astype(str).str.strip()
         valide = len(df[df['Statut: Validé'].str.lower() == 'oui'])
         non_valide = len(df[df['Statut: Validé'].str.lower() == 'non'])
         if total > 0:
@@ -168,7 +174,8 @@ if menu == "📊 لوحة القيادة التفاعلية":
                 fig_pie.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"))
                 st.plotly_chart(fig_pie, use_container_width=True)
             else:
-                st.warning("عمود 'Statut: Validé' غير متوفر أو فارغ في ملف الإكسيل.")
+                st.warning("العمود غير موجود. الأعمدة المكتشفة في الملف هي:")
+                st.code(", ".join(df.columns.tolist()))
 
         with chart_col2:
             st.markdown("#### 📊 الحصيلة حسب المكون الإقليمي")
@@ -186,7 +193,8 @@ if menu == "📊 لوحة القيادة التفاعلية":
                 fig_bar.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"), xaxis_title="", yaxis_title="")
                 st.plotly_chart(fig_bar, use_container_width=True)
             else:
-                st.warning("عمود 'Tuteur' غير متوفر في ملف الإكسيل.")
+                st.warning("العمود غير موجود. الأعمدة المكتشفة في الملف هي:")
+                st.code(", ".join(df.columns.tolist()))
     else:
         st.info("لا توجد بيانات لعرض المبيانات. المرجو استيراد قاعدة البيانات.")
 
