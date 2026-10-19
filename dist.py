@@ -80,27 +80,20 @@ if not st.session_state['logged_in']:
                     st.error("بيانات الدخول غير صحيحة.")
     st.stop()
 
-# 4. دالة قراءة البيانات "الذكية" (تكتشف العناوين تلقائياً وتنظفها)
+# 4. دالة قراءة البيانات الذكية (مكيفة مع هيكلة الملف الجديدة)
 FILE_PATH = "eQissmi_donnees_Haouz(1).xlsx"
 
 @st.cache_data(ttl=60)
 def load_data():
     if os.path.exists(FILE_PATH):
         try:
-            # تجربة قراءة أول 5 سطور للبحث عن العناوين الحقيقية
             for i in range(5):
                 df_temp = pd.read_excel(FILE_PATH, header=i)
-                # تنظيف أسماء الأعمدة من الفراغات الزائدة
                 df_temp.columns = df_temp.columns.astype(str).str.strip()
-                
-                # التحقق هل وجدنا الأعمدة المطلوبة
-                if 'Tuteur' in df_temp.columns or 'Statut: Validé' in df_temp.columns or 'Username' in df_temp.columns:
-                    # تنظيف البيانات داخل عمود الحالة إذا وجد
-                    if 'Statut: Validé' in df_temp.columns:
-                        df_temp['Statut: Validé'] = df_temp['Statut: Validé'].astype(str).str.strip()
+                # البحث عن الأعمدة الجديدة
+                if 'Validé par mérite (X)' in df_temp.columns or 'Nom & Prénom' in df_temp.columns:
                     return df_temp
             
-            # إذا لم يجد شيئا بعد 5 محاولات، يرجع الملف العادي مع تنظيف الأعمدة
             df_fallback = pd.read_excel(FILE_PATH)
             df_fallback.columns = df_fallback.columns.astype(str).str.strip()
             return df_fallback
@@ -133,28 +126,34 @@ with st.sidebar:
         st.session_state['logged_in'] = False
         st.rerun()
 
-# 7. الحسابات والمؤشرات
+# 7. الحسابات والمؤشرات (مكيفة مع الهيكلة الجديدة)
 total = len(df)
-valide = non_valide = taux = tuteurs_count = 0
+valide_merite = valide_compensation = en_attente = taux = 0
 
 if total > 0:
-    if 'Statut: Validé' in df.columns:
-        valide = len(df[df['Statut: Validé'].str.lower() == 'oui'])
-        non_valide = len(df[df['Statut: Validé'].str.lower() == 'non'])
-        if total > 0:
-            taux = round((valide / total) * 100, 1)
+    # حساب المصادقة بالاستحقاق (X)
+    if 'Validé par mérite (X)' in df.columns:
+        valide_merite = len(df[df['Validé par mérite (X)'].astype(str).str.upper() == 'X'])
     
-    if 'Tuteur' in df.columns:
-        tuteurs_count = df['Tuteur'].nunique()
+    # حساب المصادقة بالتعويض (X)
+    if 'Validé par compensasion (X)' in df.columns:
+        valide_compensation = len(df[df['Validé par compensasion (X)'].astype(str).str.upper() == 'X'])
+    
+    # من لم يصادق عليه لا في الاستحقاق ولا في التعويض
+    en_attente = total - (valide_merite + valide_compensation)
+    
+    # نسبة الإنجاز الإجمالية
+    if total > 0:
+        taux = round(((valide_merite + valide_compensation) / total) * 100, 1)
 
 # 8. محتوى الصفحات
 if menu == "📊 لوحة القيادة التفاعلية":
     cols = st.columns(5)
     cols[0].metric("إجمالي المستفيدين", f"{total:,}")
-    cols[1].metric("تمت المصادقة ✅", f"{valide:,}")
-    cols[2].metric("في الانتظار ⏳", f"{non_valide:,}")
-    cols[3].metric("نسبة الإنجاز 📈", f"{taux}%")
-    cols[4].metric("المؤطرون المعتمدون 👨‍🏫", tuteurs_count)
+    cols[1].metric("مصادقة بالاستحقاق ✅", f"{valide_merite:,}")
+    cols[2].metric("مصادقة بالتعويض 🔄", f"{valide_compensation:,}")
+    cols[3].metric("في الانتظار ⏳", f"{en_attente:,}")
+    cols[4].metric("نسبة الإنجاز 📈", f"{taux}%")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -163,28 +162,27 @@ if menu == "📊 لوحة القيادة التفاعلية":
         
         with chart_col1:
             st.markdown("#### 🔄 وضعية المصادقة على التكوين")
-            if 'Statut: Validé' in df.columns and (valide > 0 or non_valide > 0):
+            if 'Validé par mérite (X)' in df.columns or 'Validé par compensasion (X)' in df.columns:
                 fig_pie = px.pie(
-                    values=[valide, non_valide], 
-                    names=["تمت المصادقة", "في الانتظار"],
-                    color=["تمت المصادقة", "في الانتظار"],
-                    color_discrete_map={"تمت المصادقة": "#2ecc71", "في الانتظار": "#e74c3c"},
+                    values=[valide_merite, valide_compensation, en_attente], 
+                    names=["بالاستحقاق", "بالتعويض", "في الانتظار"],
+                    color=["بالاستحقاق", "بالتعويض", "في الانتظار"],
+                    color_discrete_map={"بالاستحقاق": "#2ecc71", "بالتعويض": "#f39c12", "في الانتظار": "#e74c3c"},
                     hole=0.4
                 )
                 fig_pie.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"))
                 st.plotly_chart(fig_pie, use_container_width=True)
             else:
-                st.warning("العمود غير موجود. الأعمدة المكتشفة في الملف هي:")
-                st.code(", ".join(df.columns.tolist()))
+                st.warning("الأعمدة المطلوبة غير متوفرة في ملف الإكسيل.")
 
         with chart_col2:
-            st.markdown("#### 📊 الحصيلة حسب المكون الإقليمي")
-            if 'Tuteur' in df.columns:
-                tuteur_counts = df['Tuteur'].value_counts().reset_index()
-                tuteur_counts.columns = ['المؤطر', 'عدد المستفيدين']
+            st.markdown("#### 📊 توزيع المستفيدين حسب المديرية")
+            if 'DP (Nom Officiel)' in df.columns:
+                dp_counts = df['DP (Nom Officiel)'].value_counts().reset_index()
+                dp_counts.columns = ['المديرية الإقليمية', 'عدد المستفيدين']
                 fig_bar = px.bar(
-                    tuteur_counts, 
-                    x='المؤطر', 
+                    dp_counts, 
+                    x='المديرية الإقليمية', 
                     y='عدد المستفيدين',
                     text_auto=True,
                     color='عدد المستفيدين',
@@ -193,33 +191,38 @@ if menu == "📊 لوحة القيادة التفاعلية":
                 fig_bar.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"), xaxis_title="", yaxis_title="")
                 st.plotly_chart(fig_bar, use_container_width=True)
             else:
-                st.warning("العمود غير موجود. الأعمدة المكتشفة في الملف هي:")
-                st.code(", ".join(df.columns.tolist()))
+                st.warning("عمود 'DP (Nom Officiel)' غير متوفر في ملف الإكسيل.")
     else:
         st.info("لا توجد بيانات لعرض المبيانات. المرجو استيراد قاعدة البيانات.")
 
 elif menu == "📋 اللوائح الإسمية":
     st.markdown("### قاعدة بيانات المستفيدين")
     if total > 0:
-        if 'Statut: Validé' in df.columns:
-            col1, col2 = st.columns([1, 3])
-            status_filter = col1.selectbox("تصفية حسب الحالة:", ["الكل", "تمت المصادقة", "في الانتظار"])
-            
-            if status_filter == "تمت المصادقة":
-                filtered_df = df[df['Statut: Validé'].str.lower() == 'oui']
-            elif status_filter == "في الانتظار":
-                filtered_df = df[df['Statut: Validé'].str.lower() == 'non']
+        col1, col2 = st.columns([1, 3])
+        status_filter = col1.selectbox("تصفية حسب حالة المصادقة:", ["الكل", "مصادق بالاستحقاق", "مصادق بالتعويض", "في الانتظار"])
+        
+        if status_filter == "مصادق بالاستحقاق" and 'Validé par mérite (X)' in df.columns:
+            filtered_df = df[df['Validé par mérite (X)'].astype(str).str.upper() == 'X']
+        elif status_filter == "مصادق بالتعويض" and 'Validé par compensasion (X)' in df.columns:
+            filtered_df = df[df['Validé par compensasion (X)'].astype(str).str.upper() == 'X']
+        elif status_filter == "في الانتظار":
+            # تصفية من ليس لديهم X لا هنا ولا هنا
+            if 'Validé par mérite (X)' in df.columns and 'Validé par compensasion (X)' in df.columns:
+                cond_merite = df['Validé par mérite (X)'].astype(str).str.upper() != 'X'
+                cond_comp = df['Validé par compensasion (X)'].astype(str).str.upper() != 'X'
+                filtered_df = df[cond_merite & cond_comp]
             else:
                 filtered_df = df
-            st.dataframe(filtered_df, use_container_width=True, hide_index=True, height=500)
         else:
-            st.dataframe(df, use_container_width=True, hide_index=True, height=500)
+            filtered_df = df
+            
+        st.dataframe(filtered_df, use_container_width=True, hide_index=True, height=500)
     else:
         st.warning("قاعدة البيانات فارغة حالياً.")
 
 elif menu == "📤 تحديث قاعدة البيانات":
     st.markdown("### استيراد وتحيين المعطيات")
-    st.info("💡 هذه الواجهة مخصصة لرفع النسخ المحينة من لوائح مشروع إ-قسمي (بصيغة Excel).")
+    st.info("💡 المرجو رفع الملف الذي يحتوي على الأعمدة: N°, Nom & Prénom, PPR, AREF, DP, Validé par mérite, Validé par compensasion.")
     
     uploaded_file = st.file_uploader("قم بسحب وإفلات الملف هنا", type=["xlsx", "xls"])
     
