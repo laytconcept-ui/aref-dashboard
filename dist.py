@@ -1,158 +1,216 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import os
+import time
 
-# 1. إعدادات الصفحة (مهمة لدعم العربية وتوجيه الصفحة)
-st.set_page_config(page_title="نظام تتبع خطط العمل - AREF MS", page_icon="📊", layout="wide")
+# 1. إعدادات الصفحة المتقدمة
+st.set_page_config(page_title="المنصة الإقليمية لتتبع التكوينات", page_icon="🇲🇦", layout="wide")
 
-# فرض التوجيه من اليمين لليسار (RTL) باستخدام CSS
+# 2. تصميم CSS احترافي (خطوط رسمية، إخفاء هوية Streamlit، بطاقات ثلاثية الأبعاد)
 st.markdown("""
     <style>
-    * {
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Tajawal', sans-serif;
         direction: rtl;
+        text-align: right;
     }
-    .stMetric {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 1px 1px 5px rgba(0,0,0,0.05);
+    
+    /* إخفاء القوائم الافتراضية لـ Streamlit ليبدو كتطبيق مستقل */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* تصميم بطاقات الإحصائيات */
+    div[data-testid="metric-container"] {
+        background-color: #ffffff;
+        border: 1px solid #e0e6ed;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+        border-right: 5px solid #1f77b4;
+        transition: transform 0.2s ease;
+    }
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* تلوين قيم البطاقات */
+    div[data-testid="stMetricValue"] {
+        color: #2c3e50;
+        font-size: 2rem !important;
+        font-weight: 700;
+    }
+    
+    .official-header {
+        text-align: center;
+        color: #2c3e50;
+        border-bottom: 2px solid #e0e6ed;
+        padding-bottom: 15px;
+        margin-bottom: 30px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- إعداد دوال قراءة وحفظ البيانات ---
-DATA_FILE = "plan_action_data.xlsx"
+# 3. نظام تسجيل الدخول (نفس المنطق بلمسة بصرية أفضل)
+if 'logged_in' not in st.session_state:
+    st.session_state.update({'logged_in': False, 'username': '', 'role': ''})
 
+users_db = {
+    "jalal": {"password": "admin", "role": "admin", "name": "جلال الكميلي"},
+    "tuteur1": {"password": "123", "role": "tuteur", "name": "مكون 1"}
+}
+
+if not st.session_state['logged_in']:
+    st.markdown("<h2 style='text-align: center; color: #1f77b4;'>المنصة الإقليمية لتتبع التكوينات</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>المرجو إدخال بيانات الاعتماد للولوج</p>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            username_input = st.text_input("اسم المستخدم")
+            password_input = st.text_input("كلمة المرور", type="password")
+            submit_button = st.form_submit_button("تسجيل الدخول", use_container_width=True)
+            
+            if submit_button:
+                if username_input in users_db and users_db[username_input]["password"] == password_input:
+                    st.session_state.update({'logged_in': True, 'username': users_db[username_input]["name"], 'role': users_db[username_input]["role"]})
+                    st.rerun()
+                else:
+                    st.error("بيانات الدخول غير صحيحة.")
+    st.stop()
+
+# 4. إدارة البيانات
+FILE_PATH = "eQissmi_donnees_Haouz(1).xlsx"
 
 @st.cache_data(ttl=60)
 def load_data():
-    if os.path.exists(DATA_FILE):
+    if os.path.exists(FILE_PATH):
         try:
-            return pd.read_excel(DATA_FILE)
+            return pd.read_excel(FILE_PATH, header=1)
         except:
-            return pd.DataFrame()
+            return pd.read_excel(FILE_PATH)
     return pd.DataFrame()
-
-
-def save_data(uploaded_file):
-    df_new = pd.read_excel(uploaded_file)
-    df_new.to_excel(DATA_FILE, index=False)
-    st.cache_data.clear()
-
 
 df = load_data()
 
-# --- حساب المؤشرات من البيانات ---
-total = len(df)
-if total > 0 and 'الحالة' in df.columns:
-    completed = len(df[df['الحالة'] == 'منجزة'])
-    in_progress = len(df[df['الحالة'] == 'في طور الإنجاز'])
-    delayed = len(df[df['الحالة'] == 'متأخرة'])
-    not_started = len(df[df['الحالة'] == 'لم تبدأ'])
-else:
-    completed = in_progress = delayed = not_started = 0
+# 5. الترويسة الرسمية (Header)
+st.markdown("""
+<div class="official-header">
+    <h4 style="margin: 0; font-weight: 700;">المملكة المغربية | وزارة التربية الوطنية والتعليم الأولي والرياضة</h4>
+    <h5 style="margin: 5px 0 0 0; color: #7f8c8d;">الأكاديمية الجهوية للتربية والتكوين لجهة مراكش آسفي | المديرية الإقليمية بالحوز</h5>
+</div>
+""", unsafe_allow_html=True)
 
-# 2. القائمة الجانبية (Sidebar) - بقيت كما هي تماماً
+# 6. القائمة الجانبية
 with st.sidebar:
-    st.title("نظام تتبع خطط العمل")
-    st.caption("AREF Marrakech-Safi")
+    st.markdown("<h3 style='text-align: center; color: #1f77b4;'>إ-قسمي 2025</h3>", unsafe_allow_html=True)
     st.markdown("---")
-
-    st.markdown("**جلال الكميلي** · *منسق إقليمي*")
-
-    annee_scolaire = st.selectbox("السنة الدراسية:", ["2026/2027", "2027/2028", "2028/2029"])
-
+    role_title = "رئيس مصلحة" if st.session_state['role'] == 'admin' else "مكون إقليمي"
+    st.markdown(f"<div style='text-align: center;'><strong>{st.session_state['username']}</strong><br><span style='color: #7f8c8d; font-size: 0.9em;'>{role_title}</span></div>", unsafe_allow_html=True)
     st.markdown("---")
-    menu = st.radio("القائمة الرئيسية", [
-        "الرئيسية / لوحة القيادة",
-        "خطة العمل / العمليات",
-        "التقارير",
-        "استيراد البيانات"
-    ])
-
+    
+    menu = st.radio("خيارات التصفح", ["📊 لوحة القيادة التفاعلية", "📋 اللوائح الإسمية", "📤 تحديث قاعدة البيانات"])
+    
     st.markdown("<br><br>", unsafe_allow_html=True)
-    st.button("تسجيل الخروج", use_container_width=True)
+    if st.button("تسجيل الخروج 🚪", use_container_width=True):
+        st.session_state['logged_in'] = False
+        st.rerun()
 
-# 3. محتوى الصفحات (Main Content)
-if menu == "الرئيسية / لوحة القيادة":
-    st.header("لوحة القيادة - تتبع خطة العمل السنوية")
-    st.subheader("مديرية الحوز", divider='gray')
+# 7. الحسابات والمؤشرات
+total = len(df)
+if total > 0 and 'Statut: Validé' in df.columns:
+    valide = len(df[df['Statut: Validé'] == 'Oui'])
+    non_valide = len(df[df['Statut: Validé'] == 'Non'])
+    taux = round((valide / total) * 100, 1)
+else:
+    valide = non_valide = taux = 0
+tuteurs_count = df['Tuteur'].nunique() if total > 0 and 'Tuteur' in df.columns else 0
 
-    # البطاقات العلوية (Metrics) تم ربطها بالبيانات
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    col1.metric("إجمالي العمليات", total)
-    col2.metric("منجزة", completed)
-    col3.metric("في طور الإنجاز", in_progress)
-    col4.metric("متأخرة", delayed)
-    col5.metric("لم تبدأ", not_started)
+# 8. محتوى الصفحات
+if menu == "📊 لوحة القيادة التفاعلية":
+    # أ. البطاقات العلوية
+    cols = st.columns(5)
+    cols[0].metric("إجمالي المستفيدين", f"{total:,}")
+    cols[1].metric("تمت المصادقة ✅", f"{valide:,}")
+    cols[2].metric("في الانتظار ⏳", f"{non_valide:,}")
+    cols[3].metric("نسبة الإنجاز 📈", f"{taux}%")
+    cols[4].metric("المؤطرون المعتمدون 👨‍🏫", tuteurs_count)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # تقسيم الشاشة إلى عمودين للمؤشرات (كما في التصميم الأصلي)
-    left_col, right_col = st.columns(2)
-
-    with left_col:
-        st.markdown("### وضعية العمليات")
-        if total > 0:
-            status_df = pd.DataFrame({"الحالة": ["منجزة", "في طور الإنجاز", "متأخرة", "لم تبدأ"],
-                                      "العدد": [completed, in_progress, delayed, not_started]})
-            st.dataframe(status_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("لا توجد عمليات مسجلة لهذه السنة الدراسية.")
-
-        st.markdown("### توزيع العمليات حسب المنسق")
-        if total > 0 and 'المنسق' in df.columns:
-            st.dataframe(df['المنسق'].value_counts().reset_index().rename(columns={'count': 'العدد'}),
-                         use_container_width=True, hide_index=True)
-        else:
-            st.info("لا يوجد منسقون بعد.")
-
-    with right_col:
-        st.markdown("### المؤشرات: المستهدف مقابل المنجز")
-        if total > 0 and 'المستهدف' in df.columns and 'المنجز' in df.columns:
-            st.dataframe(df[['اسم العملية', 'المستهدف', 'المنجز']].head(5), use_container_width=True, hide_index=True)
-        else:
-            st.info("لا توجد مؤشرات مسجلة.")
-
-        st.markdown(f"### ⚠ العمليات المتأخرة ( {delayed} )")
-        if delayed > 0:
-            st.warning("العمليات التالية تجاوزت الآجال المحددة:")
-            st.dataframe(df[df['الحالة'] == 'متأخرة'][['اسم العملية', 'المنسق']], use_container_width=True,
-                         hide_index=True)
-        else:
-            st.warning("لا توجد عمليات متأخرة.")
-
-        st.markdown("### ⏰ عمليات ستنتهي قريبًا ( 0 )")
-        st.success("لا توجد عمليات قريبة من الانتهاء حالياً.")
-
-# --- قسم استيراد البيانات (تمت برمجته) ---
-elif menu == "استيراد البيانات":
-    st.header("📥 استيراد ورفع البيانات")
-    st.info(
-        "قم برفع ملف Excel يحتوي على بيانات خطة العمل. يفضل أن يحتوي على أعمدة مثل: (اسم العملية، المنسق، الحالة، المستهدف، المنجز).")
-
-    uploaded_file = st.file_uploader("اختر ملف الإكسيل (Excel)", type=["xlsx", "xls"])
-
-    if uploaded_file:
-        preview_df = pd.read_excel(uploaded_file)
-        st.write("معاينة سريعة للملف قبل الحفظ:")
-        st.dataframe(preview_df.head(), use_container_width=True)
-
-        if st.button("تأكيد وحفظ البيانات", type="primary"):
-            try:
-                save_data(uploaded_file)
-                st.success("تم استيراد البيانات بنجاح! انتقل الآن إلى 'لوحة القيادة' لرؤية الإحصائيات الجديدة.")
-            except Exception as e:
-                st.error(f"حدث خطأ أثناء حفظ الملف: {e}")
-
-# --- قسم خطة العمل (تمت برمجته) ---
-elif menu == "خطة العمل / العمليات":
-    st.header("📋 خطة العمل والعمليات المبرمجة")
+    # ب. المبيانات التفاعلية (Plotly)
     if total > 0:
-        st.dataframe(df, use_container_width=True, hide_index=True)
-    else:
-        st.info("لم يتم رفع أي بيانات بعد. يرجى الذهاب إلى صفحة 'استيراد البيانات' لرفع ملفك الأول.")
+        chart_col1, chart_col2 = st.columns(2)
+        
+        with chart_col1:
+            st.markdown("#### 🔄 وضعية المصادقة على التكوين")
+            fig_pie = px.pie(
+                values=[valide, non_valide], 
+                names=["تمت المصادقة", "في الانتظار"],
+                color=["تمت المصادقة", "في الانتظار"],
+                color_discrete_map={"تمت المصادقة": "#2ecc71", "في الانتظار": "#e74c3c"},
+                hole=0.4
+            )
+            fig_pie.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"))
+            st.plotly_chart(fig_pie, use_container_width=True)
 
-else:
-    st.info(f"أنت الآن في صفحة: {menu} (قيد التطوير)")
+        with chart_col2:
+            st.markdown("#### 📊 الحصيلة حسب المكون الإقليمي")
+            if 'Tuteur' in df.columns:
+                tuteur_counts = df['Tuteur'].value_counts().reset_index()
+                tuteur_counts.columns = ['المؤطر', 'عدد المستفيدين']
+                fig_bar = px.bar(
+                    tuteur_counts, 
+                    x='المؤطر', 
+                    y='عدد المستفيدين',
+                    text_auto=True,
+                    color='عدد المستفيدين',
+                    color_continuous_scale='Blues'
+                )
+                fig_bar.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"), xaxis_title="", yaxis_title="")
+                st.plotly_chart(fig_bar, use_container_width=True)
+    else:
+        st.info("لا توجد بيانات لعرض المبيانات. المرجو استيراد قاعدة البيانات.")
+
+elif menu == "📋 اللوائح الإسمية":
+    st.markdown("### قاعدة بيانات المستفيدين")
+    if total > 0:
+        col1, col2 = st.columns([1, 3])
+        status_filter = col1.selectbox("تصفية حسب الحالة:", ["الكل", "تمت المصادقة", "في الانتظار"])
+        
+        if status_filter == "تمت المصادقة":
+            filtered_df = df[df['Statut: Validé'] == 'Oui']
+        elif status_filter == "في الانتظار":
+            filtered_df = df[df['Statut: Validé'] == 'Non']
+        else:
+            filtered_df = df
+            
+        st.dataframe(filtered_df, use_container_width=True, hide_index=True, height=500)
+    else:
+        st.warning("قاعدة البيانات فارغة حالياً.")
+
+elif menu == "📤 تحديث قاعدة البيانات":
+    st.markdown("### استيراد وتحيين المعطيات")
+    st.info("💡 هذه الواجهة مخصصة لرفع النسخ المحينة من لوائح مشروع إ-قسمي (بصيغة Excel).")
+    
+    uploaded_file = st.file_uploader("قم بسحب وإفلات الملف هنا", type=["xlsx", "xls"])
+    
+    if uploaded_file is not None:
+        with st.spinner('جاري قراءة ومعالجة البيانات...'):
+            time.sleep(1) # تأثير بصري احترافي لمعالجة البيانات
+            preview_df = pd.read_excel(uploaded_file)
+        
+        st.success("تمت قراءة الملف بنجاح. معاينة أولية:")
+        st.dataframe(preview_df.head(), use_container_width=True)
+        
+        if st.button("تأكيد واعتماد البيانات 💾", type="primary", use_container_width=True):
+            try:
+                preview_df.to_excel(FILE_PATH, index=False)
+                st.cache_data.clear()
+                st.success("✅ تم تحديث قاعدة البيانات بنجاح! التغييرات مفعلة الآن في لوحة القيادة.")
+            except Exception as e:
+                st.error(f"حدث خطأ غير متوقع: {e}")
