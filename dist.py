@@ -7,7 +7,7 @@ import time
 # 1. إعدادات الصفحة المتقدمة
 st.set_page_config(page_title="المنصة الإقليمية لتتبع التكوينات", page_icon="🇲🇦", layout="wide")
 
-# 2. تصميم CSS احترافي (خطوط رسمية، إخفاء هوية Streamlit، بطاقات ثلاثية الأبعاد)
+# 2. تصميم CSS احترافي
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
@@ -18,12 +18,10 @@ st.markdown("""
         text-align: right;
     }
     
-    /* إخفاء القوائم الافتراضية لـ Streamlit ليبدو كتطبيق مستقل */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* تصميم بطاقات الإحصائيات */
     div[data-testid="metric-container"] {
         background-color: #ffffff;
         border: 1px solid #e0e6ed;
@@ -38,7 +36,6 @@ st.markdown("""
         box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
     }
     
-    /* تلوين قيم البطاقات */
     div[data-testid="stMetricValue"] {
         color: #2c3e50;
         font-size: 2rem !important;
@@ -55,7 +52,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. نظام تسجيل الدخول (نفس المنطق بلمسة بصرية أفضل)
+# 3. نظام تسجيل الدخول
 if 'logged_in' not in st.session_state:
     st.session_state.update({'logged_in': False, 'username': '', 'role': ''})
 
@@ -83,21 +80,29 @@ if not st.session_state['logged_in']:
                     st.error("بيانات الدخول غير صحيحة.")
     st.stop()
 
-# 4. إدارة البيانات
+# 4. دالة قراءة البيانات الذكية (المحدثة لتفادي مشكل الأصفار)
 FILE_PATH = "eQissmi_donnees_Haouz(1).xlsx"
 
 @st.cache_data(ttl=60)
 def load_data():
     if os.path.exists(FILE_PATH):
         try:
-            return pd.read_excel(FILE_PATH, header=1)
-        except:
-            return pd.read_excel(FILE_PATH)
+            # المحاولة الأولى: قراءة السطر الأول كعناوين
+            df = pd.read_excel(FILE_PATH)
+            
+            # إذا لم يجد عمود 'Statut: Validé'، سيجرب السطر الثاني
+            if 'Statut: Validé' not in df.columns:
+                df_alt = pd.read_excel(FILE_PATH, header=1)
+                if 'Statut: Validé' in df_alt.columns:
+                    return df_alt
+            return df
+        except Exception as e:
+            return pd.DataFrame()
     return pd.DataFrame()
 
 df = load_data()
 
-# 5. الترويسة الرسمية (Header)
+# 5. الترويسة الرسمية
 st.markdown("""
 <div class="official-header">
     <h4 style="margin: 0; font-weight: 700;">المملكة المغربية | وزارة التربية الوطنية والتعليم الأولي والرياضة</h4>
@@ -120,19 +125,24 @@ with st.sidebar:
         st.session_state['logged_in'] = False
         st.rerun()
 
-# 7. الحسابات والمؤشرات
+# 7. الحسابات والمؤشرات (مع حماية ضد غياب الأعمدة)
 total = len(df)
-if total > 0 and 'Statut: Validé' in df.columns:
-    valide = len(df[df['Statut: Validé'] == 'Oui'])
-    non_valide = len(df[df['Statut: Validé'] == 'Non'])
-    taux = round((valide / total) * 100, 1)
-else:
-    valide = non_valide = taux = 0
-tuteurs_count = df['Tuteur'].nunique() if total > 0 and 'Tuteur' in df.columns else 0
+valide = non_valide = taux = tuteurs_count = 0
+
+if total > 0:
+    if 'Statut: Validé' in df.columns:
+        # نقوم بتنظيف النصوص من أي مسافات زائدة لضمان دقة الحساب
+        df['Statut: Validé'] = df['Statut: Validé'].astype(str).str.strip()
+        valide = len(df[df['Statut: Validé'].str.lower() == 'oui'])
+        non_valide = len(df[df['Statut: Validé'].str.lower() == 'non'])
+        if total > 0:
+            taux = round((valide / total) * 100, 1)
+    
+    if 'Tuteur' in df.columns:
+        tuteurs_count = df['Tuteur'].nunique()
 
 # 8. محتوى الصفحات
 if menu == "📊 لوحة القيادة التفاعلية":
-    # أ. البطاقات العلوية
     cols = st.columns(5)
     cols[0].metric("إجمالي المستفيدين", f"{total:,}")
     cols[1].metric("تمت المصادقة ✅", f"{valide:,}")
@@ -142,21 +152,23 @@ if menu == "📊 لوحة القيادة التفاعلية":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ب. المبيانات التفاعلية (Plotly)
     if total > 0:
         chart_col1, chart_col2 = st.columns(2)
         
         with chart_col1:
             st.markdown("#### 🔄 وضعية المصادقة على التكوين")
-            fig_pie = px.pie(
-                values=[valide, non_valide], 
-                names=["تمت المصادقة", "في الانتظار"],
-                color=["تمت المصادقة", "في الانتظار"],
-                color_discrete_map={"تمت المصادقة": "#2ecc71", "في الانتظار": "#e74c3c"},
-                hole=0.4
-            )
-            fig_pie.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"))
-            st.plotly_chart(fig_pie, use_container_width=True)
+            if 'Statut: Validé' in df.columns and (valide > 0 or non_valide > 0):
+                fig_pie = px.pie(
+                    values=[valide, non_valide], 
+                    names=["تمت المصادقة", "في الانتظار"],
+                    color=["تمت المصادقة", "في الانتظار"],
+                    color_discrete_map={"تمت المصادقة": "#2ecc71", "في الانتظار": "#e74c3c"},
+                    hole=0.4
+                )
+                fig_pie.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"))
+                st.plotly_chart(fig_pie, use_container_width=True)
+            else:
+                st.warning("عمود 'Statut: Validé' غير متوفر أو فارغ في ملف الإكسيل.")
 
         with chart_col2:
             st.markdown("#### 📊 الحصيلة حسب المكون الإقليمي")
@@ -173,23 +185,27 @@ if menu == "📊 لوحة القيادة التفاعلية":
                 )
                 fig_bar.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"), xaxis_title="", yaxis_title="")
                 st.plotly_chart(fig_bar, use_container_width=True)
+            else:
+                st.warning("عمود 'Tuteur' غير متوفر في ملف الإكسيل.")
     else:
         st.info("لا توجد بيانات لعرض المبيانات. المرجو استيراد قاعدة البيانات.")
 
 elif menu == "📋 اللوائح الإسمية":
     st.markdown("### قاعدة بيانات المستفيدين")
     if total > 0:
-        col1, col2 = st.columns([1, 3])
-        status_filter = col1.selectbox("تصفية حسب الحالة:", ["الكل", "تمت المصادقة", "في الانتظار"])
-        
-        if status_filter == "تمت المصادقة":
-            filtered_df = df[df['Statut: Validé'] == 'Oui']
-        elif status_filter == "في الانتظار":
-            filtered_df = df[df['Statut: Validé'] == 'Non']
-        else:
-            filtered_df = df
+        if 'Statut: Validé' in df.columns:
+            col1, col2 = st.columns([1, 3])
+            status_filter = col1.selectbox("تصفية حسب الحالة:", ["الكل", "تمت المصادقة", "في الانتظار"])
             
-        st.dataframe(filtered_df, use_container_width=True, hide_index=True, height=500)
+            if status_filter == "تمت المصادقة":
+                filtered_df = df[df['Statut: Validé'].str.lower() == 'oui']
+            elif status_filter == "في الانتظار":
+                filtered_df = df[df['Statut: Validé'].str.lower() == 'non']
+            else:
+                filtered_df = df
+            st.dataframe(filtered_df, use_container_width=True, hide_index=True, height=500)
+        else:
+            st.dataframe(df, use_container_width=True, hide_index=True, height=500)
     else:
         st.warning("قاعدة البيانات فارغة حالياً.")
 
@@ -201,7 +217,7 @@ elif menu == "📤 تحديث قاعدة البيانات":
     
     if uploaded_file is not None:
         with st.spinner('جاري قراءة ومعالجة البيانات...'):
-            time.sleep(1) # تأثير بصري احترافي لمعالجة البيانات
+            time.sleep(1)
             preview_df = pd.read_excel(uploaded_file)
         
         st.success("تمت قراءة الملف بنجاح. معاينة أولية:")
