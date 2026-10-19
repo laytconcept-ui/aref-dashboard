@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import os
 import time
+import io  # مكتبة ضرورية لتحميل وطباعة الملفات
 
 # 1. إعدادات الصفحة المتقدمة
 st.set_page_config(page_title="المنصة الإقليمية لتتبع التكوينات", page_icon="🇲🇦", layout="wide")
@@ -80,7 +81,7 @@ if not st.session_state['logged_in']:
                     st.error("بيانات الدخول غير صحيحة.")
     st.stop()
 
-# 4. دالة قراءة البيانات الذكية (مكيفة مع هيكلة الملف الجديدة)
+# 4. دالة قراءة البيانات الذكية
 FILE_PATH = "eQissmi_donnees_Haouz(1).xlsx"
 
 @st.cache_data(ttl=60)
@@ -90,7 +91,6 @@ def load_data():
             for i in range(5):
                 df_temp = pd.read_excel(FILE_PATH, header=i)
                 df_temp.columns = df_temp.columns.astype(str).str.strip()
-                # البحث عن الأعمدة الجديدة
                 if 'Validé par mérite (X)' in df_temp.columns or 'Nom & Prénom' in df_temp.columns:
                     return df_temp
             
@@ -119,30 +119,30 @@ with st.sidebar:
     st.markdown(f"<div style='text-align: center;'><strong>{st.session_state['username']}</strong><br><span style='color: #7f8c8d; font-size: 0.9em;'>{role_title}</span></div>", unsafe_allow_html=True)
     st.markdown("---")
     
-    menu = st.radio("خيارات التصفح", ["📊 لوحة القيادة التفاعلية", "📋 اللوائح الإسمية", "📤 تحديث قاعدة البيانات"])
+    menu = st.radio("خيارات التصفح", [
+        "📊 لوحة القيادة التفاعلية", 
+        "📋 اللوائح الإسمية", 
+        "🔍 التحقق من الاستفادة (PPR)",
+        "📤 تحديث قاعدة البيانات"
+    ])
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     if st.button("تسجيل الخروج 🚪", use_container_width=True):
         st.session_state['logged_in'] = False
         st.rerun()
 
-# 7. الحسابات والمؤشرات (مكيفة مع الهيكلة الجديدة)
+# 7. الحسابات والمؤشرات الإجمالية
 total = len(df)
 valide_merite = valide_compensation = en_attente = taux = 0
 
 if total > 0:
-    # حساب المصادقة بالاستحقاق (X)
     if 'Validé par mérite (X)' in df.columns:
         valide_merite = len(df[df['Validé par mérite (X)'].astype(str).str.upper() == 'X'])
     
-    # حساب المصادقة بالتعويض (X)
     if 'Validé par compensasion (X)' in df.columns:
         valide_compensation = len(df[df['Validé par compensasion (X)'].astype(str).str.upper() == 'X'])
     
-    # من لم يصادق عليه لا في الاستحقاق ولا في التعويض
     en_attente = total - (valide_merite + valide_compensation)
-    
-    # نسبة الإنجاز الإجمالية
     if total > 0:
         taux = round(((valide_merite + valide_compensation) / total) * 100, 1)
 
@@ -159,7 +159,6 @@ if menu == "📊 لوحة القيادة التفاعلية":
 
     if total > 0:
         chart_col1, chart_col2 = st.columns(2)
-        
         with chart_col1:
             st.markdown("#### 🔄 وضعية المصادقة على التكوين")
             if 'Validé par mérite (X)' in df.columns or 'Validé par compensasion (X)' in df.columns:
@@ -173,7 +172,7 @@ if menu == "📊 لوحة القيادة التفاعلية":
                 fig_pie.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"))
                 st.plotly_chart(fig_pie, use_container_width=True)
             else:
-                st.warning("الأعمدة المطلوبة غير متوفرة في ملف الإكسيل.")
+                st.warning("الأعمدة المطلوبة غير متوفرة.")
 
         with chart_col2:
             st.markdown("#### 📊 توزيع المستفيدين حسب المديرية")
@@ -181,17 +180,13 @@ if menu == "📊 لوحة القيادة التفاعلية":
                 dp_counts = df['DP (Nom Officiel)'].value_counts().reset_index()
                 dp_counts.columns = ['المديرية الإقليمية', 'عدد المستفيدين']
                 fig_bar = px.bar(
-                    dp_counts, 
-                    x='المديرية الإقليمية', 
-                    y='عدد المستفيدين',
-                    text_auto=True,
-                    color='عدد المستفيدين',
-                    color_continuous_scale='Blues'
+                    dp_counts, x='المديرية الإقليمية', y='عدد المستفيدين', text_auto=True,
+                    color='عدد المستفيدين', color_continuous_scale='Blues'
                 )
                 fig_bar.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"), xaxis_title="", yaxis_title="")
                 st.plotly_chart(fig_bar, use_container_width=True)
             else:
-                st.warning("عمود 'DP (Nom Officiel)' غير متوفر في ملف الإكسيل.")
+                st.warning("عمود 'DP (Nom Officiel)' غير متوفر.")
     else:
         st.info("لا توجد بيانات لعرض المبيانات. المرجو استيراد قاعدة البيانات.")
 
@@ -206,7 +201,6 @@ elif menu == "📋 اللوائح الإسمية":
         elif status_filter == "مصادق بالتعويض" and 'Validé par compensasion (X)' in df.columns:
             filtered_df = df[df['Validé par compensasion (X)'].astype(str).str.upper() == 'X']
         elif status_filter == "في الانتظار":
-            # تصفية من ليس لديهم X لا هنا ولا هنا
             if 'Validé par mérite (X)' in df.columns and 'Validé par compensasion (X)' in df.columns:
                 cond_merite = df['Validé par mérite (X)'].astype(str).str.upper() != 'X'
                 cond_comp = df['Validé par compensasion (X)'].astype(str).str.upper() != 'X'
@@ -216,15 +210,75 @@ elif menu == "📋 اللوائح الإسمية":
         else:
             filtered_df = df
             
-        st.dataframe(filtered_df, use_container_width=True, hide_index=True, height=500)
+        st.dataframe(filtered_df, use_container_width=True, hide_index=True, height=400)
+        
+        # --- إضافة زر الطباعة / التحميل ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            filtered_df.to_excel(writer, index=False)
+        st.download_button(
+            label="🖨️ تحميل اللائحة للطباعة (Excel)",
+            data=buffer.getvalue(),
+            file_name=f"Liste_{status_filter}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="primary"
+        )
     else:
         st.warning("قاعدة البيانات فارغة حالياً.")
+
+elif menu == "🔍 التحقق من الاستفادة (PPR)":
+    st.markdown("### 🔍 فحص الاستفادة السابقة عبر رقم التأجير")
+    st.info("تمكنك هذه الواجهة من التأكد مما إذا كان الأساتذة قد استفادوا في دورات سابقة لتفادي التكرار.")
+    
+    if total > 0 and 'PPR' in df.columns:
+        # استخراج أرقام التأجير للذين استفادوا فعلاً (إما بالاستحقاق أو بالتعويض)
+        cond_m = df['Validé par mérite (X)'].astype(str).str.upper() == 'X' if 'Validé par mérite (X)' in df.columns else False
+        cond_c = df['Validé par compensasion (X)'].astype(str).str.upper() == 'X' if 'Validé par compensasion (X)' in df.columns else False
+        df_benefited = df[cond_m | cond_c]
+        benefited_pprs = df_benefited['PPR'].astype(str).str.strip().unique()
+        
+        st.markdown("#### 1️⃣ فحص فردي (أستاذ واحد)")
+        search_ppr = st.text_input("📝 أدخل رقم التأجير (PPR) للبحث:")
+        if search_ppr:
+            clean_search = search_ppr.strip()
+            if clean_search in benefited_pprs:
+                st.error(f"❌ الأستاذ(ة) صاحب رقم التأجير **{clean_search}** سبق له أن استفاد.")
+                st.dataframe(df_benefited[df_benefited['PPR'].astype(str).str.strip() == clean_search], hide_index=True)
+            else:
+                st.success(f"✅ الأستاذ(ة) صاحب رقم التأجير **{clean_search}** لم يستفد سابقاً (يمكن إضافته).")
+        
+        st.markdown("---")
+        st.markdown("#### 2️⃣ فحص لائحة كاملة دفعة واحدة (مثال: لائحة 2024-2025)")
+        verify_file = st.file_uploader("ارفع اللائحة الجديدة لفحصها:", type=["xlsx", "xls"], key="verify_upload")
+        
+        if verify_file:
+            df_new = pd.read_excel(verify_file)
+            if 'PPR' in df_new.columns:
+                df_new['PPR_str'] = df_new['PPR'].astype(str).str.strip()
+                # إضافة عمود يوضح هل المستفيد مكرر أم جديد
+                df_new['ملاحظة الفحص'] = df_new['PPR_str'].apply(lambda x: 'استفاد سابقاً ❌' if x in benefited_pprs else 'مقبول (جديد) ✅')
+                df_new = df_new.drop(columns=['PPR_str']) # مسح العمود المؤقت
+                
+                st.write("نتيجة الفحص الآلي:")
+                st.dataframe(df_new, use_container_width=True, hide_index=True)
+                
+                # زر لتحميل نتيجة الفحص
+                buf_verify = io.BytesIO()
+                with pd.ExcelWriter(buf_verify, engine='openpyxl') as w2:
+                    df_new.to_excel(w2, index=False)
+                st.download_button("📥 تحميل نتيجة الفحص", data=buf_verify.getvalue(), file_name="Resultat_Verification.xlsx", use_container_width=True)
+            else:
+                st.warning("الملف المرفوع لا يحتوي على عمود 'PPR'. يرجى التأكد من هيكلة الملف.")
+    else:
+        st.warning("قاعدة البيانات الحالية فارغة أو لا تحتوي على عمود 'PPR'.")
 
 elif menu == "📤 تحديث قاعدة البيانات":
     st.markdown("### استيراد وتحيين المعطيات")
     st.info("💡 المرجو رفع الملف الذي يحتوي على الأعمدة: N°, Nom & Prénom, PPR, AREF, DP, Validé par mérite, Validé par compensasion.")
     
-    uploaded_file = st.file_uploader("قم بسحب وإفلات الملف هنا", type=["xlsx", "xls"])
+    uploaded_file = st.file_uploader("قم بسحب وإفلات الملف هنا", type=["xlsx", "xls"], key="main_upload")
     
     if uploaded_file is not None:
         with st.spinner('جاري قراءة ومعالجة البيانات...'):
