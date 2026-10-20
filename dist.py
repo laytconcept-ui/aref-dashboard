@@ -166,7 +166,7 @@ if menu == "🏠 التقديم وطلب الانخراط":
     st.markdown("<div class='presentation-box'>", unsafe_allow_html=True)
     
     # يمكنك استبدال الرابط أدناه برابط فيديو حقيقي أو تركه هكذا
-    st.video("https://www.youtube.com/watch?v=J_jKjB7Z8oA") 
+    st.video("https://www.youtube.com/watch?v=ejZeosbChAE") 
     st.info("💡 المرجو الاطلاع على العرض التقديمي أعلاه لفهم أهداف المشروع قبل الشروع في التسجيل.")
     st.markdown("</div>", unsafe_allow_html=True)
     
