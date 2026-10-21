@@ -37,7 +37,6 @@ st.markdown("""
         direction: rtl !important;
     }
     
-    /* إخفاء شريط وأزرار Streamlit */
     #MainMenu {visibility: hidden !important; display: none !important;}
     footer {visibility: hidden !important; display: none !important;}
     header {visibility: hidden !important; display: none !important;}
@@ -45,7 +44,6 @@ st.markdown("""
     .viewerBadge_container {display: none !important;}
     .viewerBadge_link {display: none !important;}
     
-    /* بطاقات لوحة التحكم */
     div[data-testid="metric-container"] {
         background-color: #ffffff;
         border: 1px solid #e0e6ed;
@@ -65,7 +63,6 @@ st.markdown("""
         font-weight: 700;
     }
     
-    /* صندوق تسجيل الدخول المخصص */
     .login-card [data-testid="stForm"] {
         background-color: #ffffff;
         padding: 30px;
@@ -143,7 +140,6 @@ with st.sidebar:
     st.markdown("---")
     
     if not st.session_state['logged_in']:
-        # تبدأ القائمة بصفحة التقديم كخيار افتراضي أولي
         menu = st.radio("القائمة الرئيسية:", ["🏠 التقديم وطلب الانخراط", "🔐 ولوج الإدارة"])
     else:
         role_title = "رئيس مصلحة" if st.session_state['role'] == 'admin' else "مكون إقليمي"
@@ -162,7 +158,7 @@ with st.sidebar:
             st.rerun()
 
 # ==========================================
-# 6. الحسابات والمؤشرات الإجمالية
+# 6. الحسابات والمؤشرات الإجمالية للإدارة
 # ==========================================
 total = len(df)
 valide_merite = valide_compensation = en_attente = taux = 0
@@ -185,7 +181,6 @@ if total > 0:
 # 1. صفحة البداية للعموم (التقديم + الفيديو + الاستمارة)
 # ------------------------------------------
 if menu == "🏠 التقديم وطلب الانخراط":
-    # عرض الشعار في أعلى صفحة البداية
     c_logo1, c_logo2, c_logo3 = st.columns([1, 2, 1])
     with c_logo2:
         try:
@@ -197,7 +192,6 @@ if menu == "🏠 التقديم وطلب الانخراط":
     st.markdown("### 📽️ العرض التقديمي لمشروع إ-قسمي")
     with st.container():
         st.markdown("<div class='presentation-box'>", unsafe_allow_html=True)
-        # رابط الفيديو التعريفي للمشروع
         st.video("https://www.youtube.com/watch?v=J_jKjB7Z8oA")
         st.info("💡 المرجو الاطلاع على العرض التقديمي أعلاه للتعرف على محاور وأهداف المشروع قبل تسجيل الطلب.")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -250,7 +244,6 @@ if menu == "🏠 التقديم وطلب الانخراط":
 elif menu == "🔐 ولوج الإدارة" and not st.session_state['logged_in']:
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # الشعار في الوسط
     logo_col1, logo_col2, logo_col3 = st.columns([1, 2, 1])
     with logo_col2:
         try:
@@ -261,7 +254,6 @@ elif menu == "🔐 ولوج الإدارة" and not st.session_state['logged_in'
     st.markdown("<div class='system-title'>نظام تتبع خطط العمل</div>", unsafe_allow_html=True)
     st.markdown("<div class='system-subtitle'>الأكاديمية الجهوية للتربية والتكوين - مراكش آسفي</div>", unsafe_allow_html=True)
 
-    # صندوق الدخول بتصميم البطاقة
     _, form_col, _ = st.columns([1, 2, 1])
     with form_col:
         st.markdown("<div class='login-card'>", unsafe_allow_html=True)
@@ -280,4 +272,168 @@ elif menu == "🔐 ولوج الإدارة" and not st.session_state['logged_in'
                     st.session_state.update({'logged_in': True, 'username': users_db[username_input]["name"], 'role': users_db[username_input]["role"]})
                     st.rerun()
                 else:
-                    st.error("بيانات الدخول غير
+                    st.error("بيانات الدخول غير صحيحة. المرجو المحاولة مجدداً.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# ------------------------------------------
+# 3. لوحة القيادة التفاعلية (بعد تسجيل الدخول)
+# ------------------------------------------
+elif menu == "📊 لوحة القيادة التفاعلية" and st.session_state['logged_in']:
+    top_col1, top_col2, top_col3 = st.columns([1, 2, 1])
+    with top_col2:
+        try:
+            st.image("logo_2026.png", use_container_width=True)
+        except Exception:
+            pass
+
+    cols = st.columns(5)
+    cols[0].metric("إجمالي المستفيدين", f"{total:,}")
+    cols[1].metric("مصادقة بالاستحقاق ✅", f"{valide_merite:,}")
+    cols[2].metric("مصادقة بالتعويض 🔄", f"{valide_compensation:,}")
+    cols[3].metric("في الانتظار ⏳", f"{en_attente:,}")
+    cols[4].metric("نسبة الإنجاز 📈", f"{taux}%")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if total > 0:
+        chart_col1, chart_col2 = st.columns(2)
+        with chart_col1:
+            st.markdown("#### 🔄 وضعية المصادقة على التكوين")
+            if 'Validé par mérite (X)' in df.columns or 'Validé par compensasion (X)' in df.columns:
+                fig_pie = px.pie(
+                    values=[valide_merite, valide_compensation, en_attente], 
+                    names=["بالاستحقاق", "بالتعويض", "في الانتظار"],
+                    color=["بالاستحقاق", "بالتعويض", "في الانتظار"],
+                    color_discrete_map={"بالاستحقاق": "#2ecc71", "بالتعويض": "#f39c12", "في الانتظار": "#e74c3c"},
+                    hole=0.4
+                )
+                fig_pie.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"))
+                st.plotly_chart(fig_pie, use_container_width=True)
+            else:
+                st.warning("الأعمدة المطلوبة غير متوفرة لرسم المبيان.")
+
+        with chart_col2:
+            st.markdown("#### 📊 توزيع المستفيدين حسب المديرية")
+            if 'DP (Nom Officiel)' in df.columns:
+                dp_counts = df['DP (Nom Officiel)'].value_counts().reset_index()
+                dp_counts.columns = ['المديرية الإقليمية', 'عدد المستفيدين']
+                fig_bar = px.bar(
+                    dp_counts, x='المديرية الإقليمية', y='عدد المستفيدين', text_auto=True,
+                    color='عدد المستفيدين', color_continuous_scale='Blues'
+                )
+                fig_bar.update_layout(margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Tajawal"), xaxis_title="", yaxis_title="")
+                st.plotly_chart(fig_bar, use_container_width=True)
+            else:
+                st.warning("عمود 'DP (Nom Officiel)' غير متوفر.")
+    else:
+        st.info("لا توجد بيانات لعرض المبيانات. المرجو استيراد قاعدة البيانات.")
+
+# ------------------------------------------
+# 4. صفحة اللوائح الإسمية (للإدارة فقط)
+# ------------------------------------------
+elif menu == "📋 اللوائح الإسمية" and st.session_state['logged_in']:
+    st.markdown("### قاعدة بيانات المستفيدين")
+    if total > 0:
+        col1, col2 = st.columns([1, 3])
+        status_filter = col1.selectbox("تصفية حسب حالة المصادقة:", ["الكل", "مصادق بالاستحقاق", "مصادق بالتعويض", "في الانتظار"])
+        
+        if status_filter == "مصادق بالاستحقاق" and 'Validé par mérite (X)' in df.columns:
+            filtered_df = df[df['Validé par mérite (X)'].astype(str).str.upper() == 'X']
+        elif status_filter == "مصادق بالتعويض" and 'Validé par compensasion (X)' in df.columns:
+            filtered_df = df[df['Validé par compensasion (X)'].astype(str).str.upper() == 'X']
+        elif status_filter == "في الانتظار":
+            if 'Validé par mérite (X)' in df.columns and 'Validé par compensasion (X)' in df.columns:
+                cond_merite = df['Validé par mérite (X)'].astype(str).str.upper() != 'X'
+                cond_comp = df['Validé par compensasion (X)'].astype(str).str.upper() != 'X'
+                filtered_df = df[cond_merite & cond_comp]
+            else:
+                filtered_df = df
+        else:
+            filtered_df = df
+            
+        st.dataframe(filtered_df, use_container_width=True, hide_index=True, height=400)
+        
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            filtered_df.to_excel(writer, index=False)
+        st.download_button(
+            label="🖨️ تحميل اللائحة للطباعة (Excel)",
+            data=buffer.getvalue(),
+            file_name=f"Liste_{status_filter}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="primary"
+        )
+    else:
+        st.warning("قاعدة البيانات فارغة حالياً.")
+
+# ------------------------------------------
+# 5. صفحة التحقق من الاستفادة (للإدارة فقط)
+# ------------------------------------------
+elif menu == "🔍 التحقق من الاستفادة (PPR)" and st.session_state['logged_in']:
+    st.markdown("### 🔍 فحص الاستفادة السابقة عبر رقم التأجير")
+    st.info("تمكنك هذه الواجهة من التأكد مما إذا كان الأساتذة قد استفادوا في دورات سابقة لتفادي التكرار.")
+    
+    if total > 0 and 'PPR' in df.columns:
+        cond_m = df['Validé par mérite (X)'].astype(str).str.upper() == 'X' if 'Validé par mérite (X)' in df.columns else False
+        cond_c = df['Validé par compensasion (X)'].astype(str).str.upper() == 'X' if 'Validé par compensasion (X)' in df.columns else False
+        df_benefited = df[cond_m | cond_c]
+        benefited_pprs = df_benefited['PPR'].astype(str).str.strip().unique()
+        
+        st.markdown("#### 1️⃣ فحص فردي (أستاذ واحد)")
+        search_ppr = st.text_input("📝 أدخل رقم التأجير (PPR) للبحث:")
+        if search_ppr:
+            clean_search = search_ppr.strip()
+            if clean_search in benefited_pprs:
+                st.error(f"❌ الأستاذ(ة) صاحب رقم التأجير **{clean_search}** سبق له أن استفاد.")
+                st.dataframe(df_benefited[df_benefited['PPR'].astype(str).str.strip() == clean_search], hide_index=True)
+            else:
+                st.success(f"✅ الأستاذ(ة) صاحب رقم التأجير **{clean_search}** لم يستفد سابقاً (يمكن إضافته).")
+        
+        st.markdown("---")
+        st.markdown("#### 2️⃣ فحص لائحة كاملة دفعة واحدة")
+        verify_file = st.file_uploader("ارفع اللائحة الجديدة لفحصها (Excel):", type=["xlsx", "xls"], key="verify_upload")
+        
+        if verify_file:
+            df_new = pd.read_excel(verify_file)
+            if 'PPR' in df_new.columns:
+                df_new['PPR_str'] = df_new['PPR'].astype(str).str.strip()
+                df_new['ملاحظة الفحص'] = df_new['PPR_str'].apply(lambda x: 'استفاد سابقاً ❌' if x in benefited_pprs else 'مقبول (جديد) ✅')
+                df_new = df_new.drop(columns=['PPR_str'])
+                
+                st.write("نتيجة الفحص الآلي:")
+                st.dataframe(df_new, use_container_width=True, hide_index=True)
+                
+                buf_verify = io.BytesIO()
+                with pd.ExcelWriter(buf_verify, engine='openpyxl') as w2:
+                    df_new.to_excel(w2, index=False)
+                st.download_button("📥 تحميل نتيجة الفحص", data=buf_verify.getvalue(), file_name="Resultat_Verification.xlsx", use_container_width=True)
+            else:
+                st.warning("الملف المرفوع لا يحتوي على عمود 'PPR'. يرجى التأكد من هيكلة الملف.")
+    else:
+        st.warning("قاعدة البيانات الحالية فارغة أو لا تحتوي على عمود 'PPR'.")
+
+# ------------------------------------------
+# 6. صفحة تحديث قاعدة البيانات (للإدارة فقط)
+# ------------------------------------------
+elif menu == "📤 تحديث قاعدة البيانات" and st.session_state['logged_in']:
+    st.markdown("### استيراد وتحيين المعطيات")
+    st.info("💡 المرجو رفع الملف الذي يحتوي على الأعمدة: N°, Nom & Prénom, PPR, AREF, DP, Validé par mérite, Validé par compensasion.")
+    
+    uploaded_file = st.file_uploader("قم بسحب وإفلات الملف هنا", type=["xlsx", "xls"], key="main_upload")
+    
+    if uploaded_file is not None:
+        with st.spinner('جاري قراءة ومعالجة البيانات...'):
+            time.sleep(1)
+            preview_df = pd.read_excel(uploaded_file)
+        
+        st.success("تمت قراءة الملف بنجاح. معاينة أولية:")
+        st.dataframe(preview_df.head(), use_container_width=True)
+        
+        if st.button("تأكيد واعتماد البيانات 💾", type="primary", use_container_width=True):
+            try:
+                preview_df.to_excel(FILE_PATH, index=False)
+                st.cache_data.clear()
+                st.success("✅ تم تحديث قاعدة البيانات بنجاح! التغييرات مفعلة الآن في لوحة القيادة.")
+            except Exception as e:
+                st.error(f"حدث خطأ غير متوقع: {e}")
