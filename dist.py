@@ -142,7 +142,7 @@ with st.sidebar:
     if not st.session_state['logged_in']:
         menu = st.radio("القائمة الرئيسية:", ["🏠 التقديم وطلب الانخراط", "🔐 ولوج الإدارة"])
     else:
-        role_title = "رئيس مصلحة" if st.session_state['role'] == 'admin' else "مكون إقليمي"
+        role_title = " مصلحة الابتكار وانتاج الموارد الرقمية " if st.session_state['role'] == 'admin' else "مكون إقليمي"
         st.markdown(f"<div style='text-align: center;'><strong>{st.session_state['username']}</strong><br><span style='color: #7f8c8d; font-size: 0.9em;'>{role_title}</span></div>", unsafe_allow_html=True)
         st.markdown("---")
         menu = st.radio("خيارات الفضاء الإداري:", [
@@ -203,6 +203,7 @@ if menu == "🏠 التقديم وطلب الانخراط":
         col1, col2 = st.columns(2)
         with col1:
             nom_prenom = st.text_input("الاسم والنسب (Nom & Prénom):*")
+            nom_prenom = st.text_input("NOM & Prénom  (EN français):*")
             ppr = st.text_input("رقم التأجير (PPR):*")
         with col2:
             aref = st.text_input("الأكاديمية (AREF):", value="Marrakech - Safi", disabled=True)
