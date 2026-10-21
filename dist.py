@@ -192,7 +192,7 @@ if menu == "🏠 التقديم وطلب الانخراط":
     st.markdown("### 📽️ العرض التقديمي لمشروع إ-قسمي")
     with st.container():
         st.markdown("<div class='presentation-box'>", unsafe_allow_html=True)
-        st.video("https://www.youtube.com/watch?v=J_jKjB7Z8oA")
+        st.video("https://www.youtube.com/watch?v=DZe7aplxpBY")
         st.info("💡 المرجو الاطلاع على العرض التقديمي أعلاه للتعرف على محاور وأهداف المشروع قبل تسجيل الطلب.")
         st.markdown("</div>", unsafe_allow_html=True)
     
