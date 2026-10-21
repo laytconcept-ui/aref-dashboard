@@ -12,7 +12,7 @@ st.set_page_config(page_title="بوابة إ-قسمي | مديرية الحوز"
 
 # ==========================================
 # ==========================================
-# 2. تصميم CSS احترافي (محدث لإخفاء الأزرار)
+# 2. تصميم CSS احترافي (إخفاء إجباري لعلامات Streamlit)
 # ==========================================
 st.markdown("""
     <style>
@@ -24,13 +24,13 @@ st.markdown("""
         text-align: right;
     }
     
-    /* إخفاء قوائم وأزرار Streamlit الافتراضية بالكامل */
-    #MainMenu {visibility: hidden; display: none;}
-    footer {visibility: hidden; display: none;}
-    header {visibility: hidden; display: none;}
-    .stDeployButton {display: none !important;}
-    [data-testid="stToolbar"] {display: none !important;}
-    div[data-testid="stDecoration"] {display: none !important;}
+    /* إخفاء صارم لجميع علامات وأزرار Streamlit */
+    #MainMenu {visibility: hidden !important; display: none !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    header {visibility: hidden !important; display: none !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+    .viewerBadge_container {display: none !important;}
+    .viewerBadge_link {display: none !important;}
     
     /* تصميم البطاقات */
     div[data-testid="metric-container"] {
@@ -70,7 +70,6 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-
 # ==========================================
 # 3. نظام تسجيل الدخول والصلاحيات
 # ==========================================
