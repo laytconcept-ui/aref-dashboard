@@ -12,16 +12,30 @@ st.set_page_config(page_title="بوابة إ-قسمي | مديرية الحوز"
 
 # ==========================================
 # ==========================================
-# 2. تصميم CSS احترافي (إخفاء إجباري لعلامات Streamlit)
+# ==========================================
+# 2. تصميم CSS احترافي (محدث لمحاذاة العناوين)
 # ==========================================
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
     
+    /* فرض الاتجاه من اليمين لليسار على كامل الصفحة */
     html, body, [class*="css"] {
         font-family: 'Tajawal', sans-serif;
         direction: rtl;
         text-align: right;
+    }
+    
+    /* إجبار جميع العناوين (h1, h2, h3, h4, h5, h6) على المحاذاة لليمين */
+    h1, h2, h3, h4, h5, h6, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
+        text-align: right !important;
+        direction: rtl !important;
+    }
+    
+    /* محاذاة النصوص داخل عناصر Streamlit */
+    div[data-testid="stMarkdownContainer"] {
+        text-align: right !important;
+        direction: rtl !important;
     }
     
     /* إخفاء صارم لجميع علامات وأزرار Streamlit */
@@ -53,8 +67,9 @@ st.markdown("""
         font-weight: 700;
     }
     
+    /* الترويسة */
     .official-header {
-        text-align: center;
+        text-align: center !important; /* هذا يبقى في الوسط لأنه ترويسة رسمية */
         color: #2c3e50;
         border-bottom: 2px solid #e0e6ed;
         padding-bottom: 15px;
