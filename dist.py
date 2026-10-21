@@ -11,7 +11,8 @@ import io
 st.set_page_config(page_title="بوابة إ-قسمي | مديرية الحوز", page_icon="🎓", layout="wide")
 
 # ==========================================
-# 2. تصميم CSS احترافي
+# ==========================================
+# 2. تصميم CSS احترافي (محدث لإخفاء الأزرار)
 # ==========================================
 st.markdown("""
     <style>
@@ -23,10 +24,15 @@ st.markdown("""
         text-align: right;
     }
     
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* إخفاء قوائم وأزرار Streamlit الافتراضية بالكامل */
+    #MainMenu {visibility: hidden; display: none;}
+    footer {visibility: hidden; display: none;}
+    header {visibility: hidden; display: none;}
+    .stDeployButton {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    div[data-testid="stDecoration"] {display: none !important;}
     
+    /* تصميم البطاقات */
     div[data-testid="metric-container"] {
         background-color: #ffffff;
         border: 1px solid #e0e6ed;
