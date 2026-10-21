@@ -4,6 +4,7 @@ import plotly.express as px
 import os
 import time
 import io
+import streamlit.components.v1 as components
 
 # ==========================================
 # 1. إعدادات الصفحة المتقدمة
@@ -11,28 +12,27 @@ import io
 st.set_page_config(page_title="بوابة إ-قسمي | مديرية الحوز", page_icon="🎓", layout="wide")
 
 # ==========================================
-# ==========================================
-# ==========================================
-# 2. تصميم CSS احترافي (محدث لمحاذاة العناوين)
+# 2. تصميم CSS احترافي (محاذاة كاملة + تصميم تسجيل الدخول)
 # ==========================================
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
     
-    /* فرض الاتجاه من اليمين لليسار على كامل الصفحة */
+    /* فرض الاتجاه والمحاذاة على كامل الصفحة */
     html, body, [class*="css"] {
         font-family: 'Tajawal', sans-serif;
         direction: rtl;
         text-align: right;
     }
     
-    /* إجبار جميع العناوين (h1, h2, h3, h4, h5, h6) على المحاذاة لليمين */
+    .stApp {
+        background-color: #f4f7f9;
+    }
+    
     h1, h2, h3, h4, h5, h6, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
         text-align: right !important;
         direction: rtl !important;
     }
-    
-    /* محاذاة النصوص داخل عناصر Streamlit */
     div[data-testid="stMarkdownContainer"] {
         text-align: right !important;
         direction: rtl !important;
@@ -46,7 +46,7 @@ st.markdown("""
     .viewerBadge_container {display: none !important;}
     .viewerBadge_link {display: none !important;}
     
-    /* تصميم البطاقات */
+    /* تصميم البطاقات الإحصائية */
     div[data-testid="metric-container"] {
         background-color: #ffffff;
         border: 1px solid #e0e6ed;
@@ -60,31 +60,47 @@ st.markdown("""
         transform: translateY(-5px);
         box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
     }
-    
     div[data-testid="stMetricValue"] {
         color: #2c3e50;
         font-size: 2rem !important;
         font-weight: 700;
     }
     
-    /* الترويسة */
-    .official-header {
-        text-align: center !important; /* هذا يبقى في الوسط لأنه ترويسة رسمية */
-        color: #2c3e50;
-        border-bottom: 2px solid #e0e6ed;
-        padding-bottom: 15px;
+    /* تصميم صندوق تسجيل الدخول */
+    [data-testid="stForm"] {
+        background-color: #ffffff;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e5e7eb;
+    }
+    
+    .system-title {
+        color: #1d4ed8;
+        text-align: center !important;
+        font-size: 32px;
+        font-weight: 700;
+        margin-top: 15px;
+        margin-bottom: 5px;
+    }
+    .system-subtitle {
+        color: #64748b;
+        text-align: center !important;
+        font-size: 18px;
         margin-bottom: 30px;
     }
     
     .presentation-box {
-        background-color: #f8f9fa;
+        background-color: #ffffff;
         padding: 20px;
         border-radius: 10px;
         margin-bottom: 30px;
         border: 1px solid #e9ecef;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
     }
     </style>
 """, unsafe_allow_html=True)
+
 # ==========================================
 # 3. نظام تسجيل الدخول والصلاحيات
 # ==========================================
@@ -121,42 +137,15 @@ def load_data():
 df = load_data()
 
 # ==========================================
-# 5. الترويسة الرسمية (تظهر للجميع)
-# ==========================================
-# ==========================================
-# 5. الترويسة الرسمية (تظهر للجميع)
-# ==========================================
-# التحقق من وجود الشعار وعرضه
-LOGO_PATH = "logo_2026.jpg"
-if os.path.exists(LOGO_PATH):
-    # استخدام أعمدة لتوسيط الشعار بشكل جميل
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image(LOGO_PATH, use_container_width=True)
-else:
-    # في حالة عدم وجود الصورة، سيتم عرض النص كبديل
-    st.markdown("""
-    <div class="official-header">
-        <h4 style="margin: 0; font-weight: 700;">المملكة المغربية | وزارة التربية الوطنية والتعليم الأولي والرياضة</h4>
-        <h5 style="margin: 5px 0 0 0; color: #7f8c8d;">الأكاديمية الجهوية للتربية والتكوين لجهة مراكش آسفي | المديرية الإقليمية بالحوز</h5>
-    </div>
-    """, unsafe_allow_html=True)
-    st.warning("الشعار 'logo_2026.jpg' غير موجود في مجلد المشروع.")
-
-st.markdown("---") # خط فاصل تحت الشعار
-
-# ==========================================
-# 6. هندسة القائمة الجانبية (Sidebar)
+# 5. هندسة القائمة الجانبية (Sidebar)
 # ==========================================
 with st.sidebar:
     st.markdown("<h3 style='text-align: center; color: #1f77b4;'>مشروع إ-قسمي 2025</h3>", unsafe_allow_html=True)
     st.markdown("---")
     
     if not st.session_state['logged_in']:
-        # قائمة العموم (للأساتذة)
-        menu = st.radio("القائمة الرئيسية:", ["🏠 التقديم وطلب الانخراط", "🔐 ولوج الإدارة"])
+        menu = st.radio("القائمة الرئيسية:", ["🔐 ولوج الإدارة", "🏠 التقديم وطلب الانخراط"])
     else:
-        # قائمة الإدارة
         role_title = "رئيس مصلحة" if st.session_state['role'] == 'admin' else "مكون إقليمي"
         st.markdown(f"<div style='text-align: center;'><strong>{st.session_state['username']}</strong><br><span style='color: #7f8c8d; font-size: 0.9em;'>{role_title}</span></div>", unsafe_allow_html=True)
         st.markdown("---")
@@ -173,7 +162,7 @@ with st.sidebar:
             st.rerun()
 
 # ==========================================
-# 7. الحسابات والمؤشرات الإجمالية للإدارة
+# 6. الحسابات والمؤشرات الإجمالية للإدارة
 # ==========================================
 total = len(df)
 valide_merite = valide_compensation = en_attente = taux = 0
@@ -181,7 +170,6 @@ valide_merite = valide_compensation = en_attente = taux = 0
 if total > 0:
     if 'Validé par mérite (X)' in df.columns:
         valide_merite = len(df[df['Validé par mérite (X)'].astype(str).str.upper() == 'X'])
-    
     if 'Validé par compensasion (X)' in df.columns:
         valide_compensation = len(df[df['Validé par compensasion (X)'].astype(str).str.upper() == 'X'])
     
@@ -190,18 +178,65 @@ if total > 0:
         taux = round(((valide_merite + valide_compensation) / total) * 100, 1)
 
 # ==========================================
-# 8. محتوى الصفحات (حسب اختيار القائمة)
+# 7. محتوى الصفحات
 # ==========================================
+
+# ------------------------------------------
+# صفحة ولوج الإدارة (مطابقة للصورة المرفقة)
+# ------------------------------------------
+if menu == "🔐 ولوج الإدارة" and not st.session_state['logged_in']:
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # الشعار في الوسط
+    logo_col1, logo_col2, logo_col3 = st.columns([1, 2, 1])
+    with logo_col2:
+        try:
+            st.image("logo_2026.png", use_container_width=True)
+        except Exception:
+            pass # يتم التجاهل إذا لم ترفع الصورة بعد لتفادي رسالة الخطأ المزعجة
+            
+    # العنوان الأزرق
+    st.markdown("<div class='system-title'>نظام تتبع خطط العمل</div>", unsafe_allow_html=True)
+    st.markdown("<div class='system-subtitle'>الأكاديمية الجهوية للتربية والتكوين - مراكش آسفي</div>", unsafe_allow_html=True)
+
+    # صندوق تسجيل الدخول
+    _, form_col, _ = st.columns([1, 2, 1])
+    with form_col:
+        with st.form("admin_login_form"):
+            st.markdown("<h3 style='text-align: right; color: #1e293b; font-weight: bold;'>تسجيل الدخول</h3>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin-top: 0px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+            
+            username_input = st.text_input("البريد الإلكتروني أو اسم المستخدم:")
+            password_input = st.text_input("كلمة المرور:", type="password")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit_button = st.form_submit_button("تسجيل الدخول", use_container_width=True)
+            
+            if submit_button:
+                if username_input in users_db and users_db[username_input]["password"] == password_input:
+                    st.session_state.update({'logged_in': True, 'username': users_db[username_input]["name"], 'role': users_db[username_input]["role"]})
+                    st.rerun()
+                else:
+                    st.error("بيانات الدخول غير صحيحة. المرجو المحاولة مجدداً.")
 
 # ------------------------------------------
 # صفحة الأساتذة (العرض + التسجيل)
 # ------------------------------------------
-if menu == "🏠 التقديم وطلب الانخراط":
+elif menu == "🏠 التقديم وطلب الانخراط" and not st.session_state['logged_in']:
+    
+    # إدراج الشعار في رأس صفحة التسجيل أيضا
+    col_logo1, col_logo2, col_logo3 = st.columns([1, 2, 1])
+    with col_logo2:
+        try:
+            st.image("logo_2026.png", use_container_width=True)
+        except Exception:
+            pass
+            
     st.markdown("### 📽️ العرض التقديمي لمشروع إ-قسمي")
     st.markdown("<div class='presentation-box'>", unsafe_allow_html=True)
     
-    # يمكنك استبدال الرابط أدناه برابط فيديو حقيقي أو تركه هكذا
-    st.video("https://www.youtube.com/watch?v=ejZeosbChAE") 
+    # يمكنك وضع كود Google Slides هنا عبر components.html
+    st.video("https://www.youtube.com/watch?v=J_jKjB7Z8oA") 
     st.info("💡 المرجو الاطلاع على العرض التقديمي أعلاه لفهم أهداف المشروع قبل الشروع في التسجيل.")
     st.markdown("</div>", unsafe_allow_html=True)
     
@@ -246,27 +281,6 @@ if menu == "🏠 التقديم وطلب الانخراط":
                         st.balloons()
                     except Exception as e:
                         st.error(f"حدث خطأ أثناء الحفظ: {e}")
-
-# ------------------------------------------
-# صفحة ولوج الإدارة
-# ------------------------------------------
-elif menu == "🔐 ولوج الإدارة":
-    st.markdown("<h3 style='text-align: center; color: #1f77b4;'>ولوج الفضاء الإداري والتتبع</h3>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        with st.form("admin_login_form"):
-            username_input = st.text_input("اسم المستخدم")
-            password_input = st.text_input("كلمة المرور", type="password")
-            submit_button = st.form_submit_button("تسجيل الدخول", use_container_width=True)
-            
-            if submit_button:
-                if username_input in users_db and users_db[username_input]["password"] == password_input:
-                    st.session_state.update({'logged_in': True, 'username': users_db[username_input]["name"], 'role': users_db[username_input]["role"]})
-                    st.rerun()
-                else:
-                    st.error("بيانات الدخول غير صحيحة.")
 
 # ------------------------------------------
 # صفحة لوحة القيادة (للإدارة فقط)
@@ -339,8 +353,6 @@ elif menu == "📋 اللوائح الإسمية" and st.session_state['logged_i
             
         st.dataframe(filtered_df, use_container_width=True, hide_index=True, height=400)
         
-        # زر الطباعة / التحميل
-        st.markdown("<br>", unsafe_allow_html=True)
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             filtered_df.to_excel(writer, index=False)
