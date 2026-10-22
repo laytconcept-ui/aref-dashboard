@@ -64,62 +64,64 @@ users_db = {
 }
 
 # ==========================================
-# 4. دالة إدارة البيانات (ربط سحابي مباشر مع Google Sheets)
+# 4. دالة إدارة البيانات المحيّنة (Google Sheets + Excel المحلي)
 # ==========================================
 FILE_PATH = "eQissmi_donnees_Haouz(1).xlsx"
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRHS9_Q3obRdzUQCZZlcDXUrrLURBnnMFWOd4w38N0dH-ULUOnnJZiYDTK7mfV7LT4NuNC0Ri2ryhG3/pub?gid=0&single=true&output=csv"
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=15)
 def load_data():
-    # 1. القراءة المباشرة الحية من Google Sheets
+    # 1. المحاولة الأولى: القراءة المباشرة من رابط Google Sheets
     try:
         df_cloud = pd.read_csv(SHEET_CSV_URL)
         df_cloud.columns = df_cloud.columns.astype(str).str.strip()
-        if 'PPR' in df_cloud.columns:
-            df_cloud['PPR'] = df_cloud['PPR'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
-        if 'Statut: Validé' in df_cloud.columns:
-            df_cloud['Statut: Validé'] = df_cloud['Statut: Validé'].astype(str).str.strip()
-        return df_cloud
+        if not df_cloud.empty and ('Bénéficiaire' in df_cloud.columns or 'PPR' in df_cloud.columns):
+            if 'PPR' in df_cloud.columns:
+                df_cloud['PPR'] = df_cloud['PPR'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
+            return df_cloud
     except Exception:
         pass
 
-    # 2. الخيار الاحتياطي: قراءة ملف Excel المحلي إن وُجد
+    # 2. المحاولة الثانية: قراءة ملف Excel المحلي مع معالجة الصفوف الصفري والواحد (header=1)
     if os.path.exists(FILE_PATH):
         try:
-            for h in [0, 1, 2]:
-                try:
-                    df_temp = pd.read_excel(FILE_PATH, header=h)
-                    df_temp.columns = df_temp.columns.astype(str).str.strip()
-                    if 'Bénéficiaire' in df_temp.columns or 'Statut: Validé' in df_temp.columns:
-                        if 'PPR' in df_temp.columns:
-                            df_temp['PPR'] = df_temp['PPR'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
-                        if 'Statut: Validé' in df_temp.columns:
-                            df_temp['Statut: Validé'] = df_temp['Statut: Validé'].astype(str).str.strip()
-                        return df_temp
-                except Exception:
-                    continue
-            df_alt = pd.read_excel(FILE_PATH)
+            # تجريب القراءة من الصف الثاني أولاً (header=1)
+            df_local = pd.read_excel(FILE_PATH, header=1)
+            df_local.columns = df_local.columns.astype(str).str.strip()
+            
+            if 'Bénéficiaire' in df_local.columns or 'PPR' in df_local.columns:
+                if 'PPR' in df_local.columns:
+                    df_local['PPR'] = df_local['PPR'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
+                return df_local
+                
+            # خيار احتياطي لتجريب الصف الأول (header=0)
+            df_alt = pd.read_excel(FILE_PATH, header=0)
             df_alt.columns = df_alt.columns.astype(str).str.strip()
+            if 'PPR' in df_alt.columns:
+                df_alt['PPR'] = df_alt['PPR'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
             return df_alt
         except Exception:
-            return pd.DataFrame()
+            pass
+
     return pd.DataFrame()
 
 df = load_data()
 
-# ضمان توفر الأعمدة الأساسية دون إحداث أخطاء
-default_columns = ['Session', 'Tuteur', 'Bénéficiaire', 'PPR', 'Cycle', 'Établissement', 'Statut: Validé']
-if not df.empty:
-    for col in default_columns:
-        if col not in df.columns:
-            df[col] = "غير محدد"
-
-# دالة مساعدة للبحث المرن عن اسم العمود
+# دالة مساعدة للبحث المرن عن أسماء الأعمدة بغض النظر عن حالة الأحرف
 def get_column_name(dataframe, target_name):
+    if dataframe.empty:
+        return None
     for c in dataframe.columns:
         if target_name.lower() in c.lower():
             return c
     return None
+
+# ضمان وجود الأعمدة الافتراضية
+default_columns = ['Session', 'Tuteur', 'Bénéficiaire', 'PPR', 'Cycle', 'Établissement', 'Statut: Validé']
+if not df.empty:
+    for col in default_columns:
+        if not get_column_name(df, col):
+            df[col] = "غير محدد"
 
 # ==========================================
 # 5. محرك تصدير التقرير التنفيذي PDF
