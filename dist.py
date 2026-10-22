@@ -94,71 +94,42 @@ if not df.empty:
     df['PPR'] = df['PPR'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
 
 # ==========================================
-# 5. محرك تصدير التقرير التنفيذي PDF
-# ==========================================
-def generate_executive_pdf(data_frame, session_filter):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
-    story = []
+# --- 5. التقرير التركيبي التنفيذي (Executive PDF) ---
+elif menu == "📄 التقرير التركيبي التنفيذي" and st.session_state['logged_in']:
+    st.markdown("### 📄 إعداد وتصدير التقرير التنفيذي الرسمي (PDF)")
+    st.info("💡 تقرير رسمي ملخص في صفحة واحدة مخصص لتقديمه للسيد المدير الإقليمي ورؤساء المصالح.")
     
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=16, alignment=1, spaceAfter=15)
-    meta_style = ParagraphStyle('Meta', parent=styles['Normal'], fontName='Helvetica', fontSize=10, alignment=1, spaceAfter=20, textColor=colors.gray)
-    
-    story.append(Paragraph("ROYAUME DU MAROC - AREF MARRAKECH-SAFI", meta_style))
-    story.append(Paragraph("DIRECTION PROVINCIALE AL HAOUZ", meta_style))
-    story.append(Paragraph(f"RAPPORT EXECUTIF DU PROJET e-Qissmi ({session_filter})", title_style))
-    story.append(Spacer(1, 10))
-    
-    tot = len(data_frame)
-    val = len(data_frame[data_frame['Statut: Validé'].str.lower() == 'oui'])
-    non_val = len(data_frame[data_frame['Statut: Validé'].str.lower() == 'non'])
-    taux_str = f"{(val / tot * 100):.1f}%" if tot > 0 else "0%"
-    
-    # جدول المؤشرات الكبرى
-    metrics_data = [
-        ["Total Beneficiaires", "Valides (Succes)", "En Attente", "Taux de Reussite"],
-        [str(tot), str(val), str(non_val), taux_str]
-    ]
-    t_metrics = Table(metrics_data, colWidths=[130, 130, 130, 130])
-    t_metrics.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f77b4')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#f8f9fa')),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e0e6ed')),
-    ]))
-    story.append(t_metrics)
-    story.append(Spacer(1, 25))
-    
-    # ملخص الأداء حسب المؤطر
-    story.append(Paragraph("Repartion par Tuteur:", styles['Heading2']))
-    tuteur_summary = data_frame.groupby('Tuteur').agg(
-        Total=('Statut: Validé', 'count'),
-        Valides=('Statut: Validé', lambda x: (x.str.lower() == 'oui').sum())
-    ).reset_index()
-    
-    tut_data = [["Tuteur", "Total Inscrits", "Valides", "Taux"]]
-    for _, row in tuteur_summary.iterrows():
-        t_taux = f"{(row['Valides'] / row['Total'] * 100):.1f}%" if row['Total'] > 0 else "0%"
-        tut_data.append([str(row['Tuteur']), str(row['Total']), str(row['Valides']), t_taux])
+    # التحقق الآمن من وجود عمود Session
+    session_col = None
+    for c in df.columns:
+        if 'session' in c.lower():
+            session_col = c
+            break
+            
+    if session_col and not df.empty:
+        session_list = ["جميع الدورات"] + sorted(list(df[session_col].dropna().unique().astype(str)))
+    else:
+        session_list = ["جميع الدورات"]
         
-    t_tut = Table(tut_data, colWidths=[200, 100, 100, 120])
-    t_tut.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-    ]))
-    story.append(t_tut)
+    sess_choice = st.selectbox("اختر الدورة المراد إعداد التقرير حولها:", session_list)
     
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+    if session_col and sess_choice != "جميع الدورات":
+        df_rep = df[df[session_col].astype(str) == sess_choice]
+    else:
+        df_rep = df.copy()
+    
+    if st.button("🚀 توليد وتحميل التقرير التنفيذي (PDF)", type="primary", use_container_width=True):
+        if not df_rep.empty:
+            pdf_bytes = generate_executive_pdf(df_rep, sess_choice)
+            st.download_button(
+                label="📥 اضغط هنا لتنزيل التقرير (Bilan_eQissmi.pdf)",
+                data=pdf_bytes,
+                file_name=f"Rapport_Executif_eQissmi_{sess_choice}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        else:
+            st.warning("لا توجد بيانات متاحة لإصدار التقرير.")
 
 # ==========================================
 # 6. القائمة الجانبية (Sidebar)
